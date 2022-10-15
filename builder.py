@@ -15,15 +15,14 @@ def find_directories(name, path):
 
 class CommitWallBuilder:
 
-    @staticmethod
-    def get_commits(repo: Repo) -> Iterable[Commit]:
+    def _get_commits(self, repo: Repo) -> Iterable[Commit]:
         config = repo.config_reader()
         actor_name = config.get_value("user", "name")
         actor_email = config.get_value("user", "email")
 
         for commit in repo.iter_commits("--all"):
             if actor_name == commit.author.name or actor_email == commit.author.email:
-                repo_name = CommitWallBuilder.parse_repo_name(commit.repo)
+                repo_name = self._parse_repo_name(commit.repo)
                 logging.info("%s %s", repo_name, commit.message)
                 yield commit
 
@@ -38,7 +37,7 @@ class CommitWallBuilder:
                 logging.warning("ignoring bare repository %s", path)
                 continue
 
-            for commit in CommitWallBuilder.get_commits(repo):
+            for commit in self._get_commits(repo):
                 if not any([c.hexsha == commit.hexsha for c in commits]):
                     commits.append(commit)
 
@@ -48,10 +47,9 @@ class CommitWallBuilder:
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        lines = []
         file_tracked = False
         for commit in commits:
-            repo_name = CommitWallBuilder.parse_repo_name(commit.repo)
+            repo_name = self._parse_repo_name(commit.repo)
             line_message = commit.message.split("\n")[0]
 
             line = f"{commit.committed_datetime} {commit.hexsha} {repo_name} {line_message}\n"
@@ -66,11 +64,11 @@ class CommitWallBuilder:
             target_repo.git.commit("-am", message, date=commit.committed_datetime)
             logging.info("commited %s", line_message)
 
-    @staticmethod
-    def parse_repo_name(repo: Repo):
+    def _parse_repo_name(self, repo: Repo):
         return os.path.basename(repo.working_dir)
 
 
 if __name__ == "__main__":
+    # builder.py build ~/pbg ~/commit-wall pbg
     logging.basicConfig(level=logging.INFO)
     fire.Fire(CommitWallBuilder)
